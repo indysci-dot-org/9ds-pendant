@@ -21,13 +21,13 @@ tailend_y = sin(180/7) * tailend;
 
 ///////////////////////////////////
 module hole(){
-	translate([-0.5, -bondlength * 0.2, -0.05]){
+	translate([-0.5, -bondlength * 0.2, -1]){
 		translate([0.5, 0, 0])
-			cylinder(h = thickness + 0.1, r=0.5, $fn=20);
+			cylinder(h = 3, r=0.5, $fn=20);
 		translate([0.5, bondlength * 0.4, 0])
-			cylinder(h = thickness + 0.1, r=0.5, $fn=20);
+			cylinder(h = 3, r=0.5, $fn=20);
 
-		cube(size=[1, bondlength * 0.4, thickness + 0.1]);
+		cube(size=[1, bondlength * 0.4, 3]);
 	}
 }
 
@@ -55,35 +55,24 @@ module bond(angle, multiplier=1){
 }
 
 
-ringthickness = 0.3;
+ringthickness = 0.45;
+ringcount = 40;
 
 module ring(){
-	for(i = [0:60])
-		rotate([0,0,360/60 * i])
+	for(i = [0:ringcount])
+		rotate([0,0,360/ringcount * i])
 			translate([-ringthickness/2,-bondlength/3,thickness/2])
 				rotate([0,90,0])
 					cylinder(h=ringthickness, r=bondlength/5, $fn=40);
 }
 
-module ringsubtraction(){
-	cheight = 2 * bondlength / 5;
-	difference(){
-		translate([0,0,(thickness - cheight) / 2])
-			cylinder(h=cheight, r=bondlength/3, $fn=60);
-		for(i = [0:60])
-			rotate([0,0,360/60 * i])
-				translate([-ringthickness/2,-bondlength/3,thickness/2])
-					rotate([0,90,0])
-						cylinder(h=ringthickness, r=bondlength/5, $fn=40);
-	}
-}
-
 module attachment(angle){
+	cheight = 2 * bondlength / 5;
 	difference(){
 		bond(angle);
 		rotate([0,0,angle])
-			translate([0,bondlength,0])
-				ringsubtraction();
+			translate([0,bondlength,(thickness - cheight) / 2])
+				cylinder(h=cheight, r=bondlength/3, $fn=60);
 	}
 	rotate([0,0,angle])
 		translate([0,bondlength,0])
@@ -94,23 +83,35 @@ module attachment(angle){
 
 //6-7-5 ring system
 
+msphererad = bondwidth / 2;
+minkheight = 0.2;
+totalheight = minkheight + msphererad * 2;
+vdisp = -(totalheight - thickness)/2 + (msphererad);
+
 difference(){
 	union(){
 		//build the hexagon
-		rotate(a=[0,0,30]){
-			cylinder(h = thickness, r=bondlength, $fn=6);
-		}
+		rotate(a=[0,0,30])
+			translate([0,0,vdisp])
+				minkowski(){
+					cylinder(h = minkheight, r=bondlength, $fn=6);
+					sphere(r = msphererad, $fn=20);
+				}
 
 		//build the heptagon
-		translate([heptcenter, 0, 0]){
-			cylinder(h = thickness, r=heptradius, $fn=7);
-		}
+		translate([heptcenter, 0, vdisp])
+			minkowski(){
+				cylinder(h = minkheight, r=heptradius, $fn=7);
+				sphere(r = msphererad, $fn=20);
+			}
 
 		//build the pentagon
-		translate([heptpent_x, heptpent_y, 0])
-		rotate(a=[0,0, 180 / 7]){
-			cylinder(h = thickness, r=pentradius, $fn=5);
-		}
+		translate([heptpent_x, heptpent_y, vdisp])
+			rotate(a=[0,0, 180 / 7])
+			minkowski(){
+				cylinder(h = minkheight, r=pentradius, $fn=5);
+				sphere(r = msphererad, $fn=20);
+			}
 	}
 
 	translate([hexnormal, 0, 0])
@@ -121,6 +122,12 @@ difference(){
 			translate([0,-0.5,0])	//fudge factor
 				hole();
 }
+
+//carboxy
+ang14 = 180/14;
+translate([hexnormal + heptnormal - heptradius * sin(ang14), heptradius * cos(ang14), 0])
+	rotate(ang14)
+		bond();
 
 // 8-methyl
 
