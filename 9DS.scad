@@ -1,5 +1,6 @@
 thickness = 1.5;
 bondlength = 5;
+thickness2 = bondlength / 2.5;
 heptradius = bondlength * 7 / 6;
 pentradius = bondlength * 5.3 / 6;
 
@@ -33,7 +34,7 @@ module hole(){
 
 bondwidth = bondlength * 0.4;
 
-module bond(angle, multiplier=1){
+module bond(angle, multiplier=1, heft = thickness){
 	length = bondlength * multiplier;
 	rotate([0,0,angle])
 	{
@@ -41,12 +42,12 @@ module bond(angle, multiplier=1){
 		{
 			//endcaps
 			translate([bondwidth/2, 0, 0])
-				cylinder(h=thickness, r=bondwidth/2, $fn=20);
+				cylinder(h=heft, r=bondwidth/2, $fn=20);
 
 			translate([bondwidth/2, length, 0])
-				cylinder(h=thickness, r=bondwidth/2, $fn=20);
+				cylinder(h=heft, r=bondwidth/2, $fn=20);
 
-			cube(size=[bondwidth, length, thickness]);
+			cube(size=[bondwidth, length, heft]);
 		}
 
 		translate([0,length,0])
@@ -63,7 +64,7 @@ module ring(){
 		rotate([0,0,360/ringcount * i])
 			translate([-ringthickness/2,-bondlength/3,thickness/2])
 				rotate([0,90,0])
-					cylinder(h=ringthickness, r=bondlength/5, $fn=40);
+					cylinder(h=ringthickness, r=thickness2/2, $fn=40);
 }
 
 module attachment(angle){
@@ -84,9 +85,9 @@ module attachment(angle){
 //6-7-5 ring system
 
 msphererad = bondwidth / 2;
-minkheight = 0.2;
+minkheight = thickness2 - thickness;
 totalheight = minkheight + msphererad * 2;
-vdisp = -(totalheight - thickness)/2 + (msphererad);
+vdisp = -minkheight / 2;
 
 difference(){
 	union(){
@@ -95,14 +96,14 @@ difference(){
 			translate([0,0,vdisp])
 				minkowski(){
 					cylinder(h = minkheight, r=bondlength, $fn=6);
-					sphere(r = msphererad, $fn=20);
+					cylinder(h = thickness, r = msphererad, $fn=20);
 				}
 
 		//build the heptagon
 		translate([heptcenter, 0, vdisp])
 			minkowski(){
 				cylinder(h = minkheight, r=heptradius, $fn=7);
-				sphere(r = msphererad, $fn=20);
+				cylinder(h = thickness, r = msphererad, $fn=20);
 			}
 
 		//build the pentagon
@@ -110,7 +111,7 @@ difference(){
 			rotate(a=[0,0, 180 / 7])
 			minkowski(){
 				cylinder(h = minkheight, r=pentradius, $fn=5);
-				sphere(r = msphererad, $fn=20);
+				cylinder(h = thickness, r = msphererad, $fn=20);
 			}
 	}
 
