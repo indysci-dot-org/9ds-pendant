@@ -1,8 +1,12 @@
+//determines what type of object we're making.
+mode = "tieclip";
+
 thickness = 1.5;
-bondlength = 5;
+bondlength = 5.0;
 thickness2 = bondlength / 2.5;
 heptradius = bondlength * 7 / 6;
 pentradius = bondlength * 5.3 / 6;
+ringthickness = .45;
 
 heptnormal = cos(180 / 7) * heptradius;
 heptsecant = sin(180 / 7) * heptradius;
@@ -22,14 +26,14 @@ tailend_y = sin(180/7) * tailend;
 
 ///////////////////////////////////
 module hole(){
-	translate([-0.5, -bondlength * 0.2, -1]){
-		translate([0.5, 0, 0])
-			cylinder(h = 3, r=0.5, $fn=20);
-		translate([0.5, bondlength * 0.4, 0])
-			cylinder(h = 3, r=0.5, $fn=20);
+	//translate([-0.5, -bondlength * 0.2, -1]){
+	//	translate([0.5, 0, 0])
+	//		cylinder(h = 3, r=0.5, $fn=20);
+	//	translate([0.5, bondlength * 0.4, 0])
+	//		cylinder(h = 3, r=0.5, $fn=20);
 
-		cube(size=[1, bondlength * 0.4, 3]);
-	}
+	//	cube(size=[1, bondlength * 0.4, 3]);
+	//}
 }
 
 bondwidth = bondlength * 0.4;
@@ -38,7 +42,7 @@ module bond(angle, multiplier=1, heft = thickness){
 	length = bondlength * multiplier;
 	rotate([0,0,angle])
 	{
-		translate([-bondwidth/2, 0, 0])
+		translate([-bondwidth/2, 0, (thickness - heft)/2])
 		{
 			//endcaps
 			translate([bondwidth/2, 0, 0])
@@ -55,8 +59,6 @@ module bond(angle, multiplier=1, heft = thickness){
 	}
 }
 
-
-ringthickness = 0.45;
 ringcount = 40;
 
 module ring(){
@@ -80,13 +82,34 @@ module attachment(angle){
 			ring();
 }
 
+st = 16/3;
+snakelength = bondwidth * 25;
+
+module snake(angle){
+	rotate([0,0,angle])
+	for(i = [0:200])
+	{
+		assign(fraction = i/200)
+			//the formula -16/3 x^3 + 8x^2 -3x was determined using CALCULUS.
+			translate([-0.5 * bondwidth,fraction * snakelength, bondwidth * (fraction + 
+				(-st * fraction * fraction * fraction + 8 * fraction * fraction - 3 * fraction))])
+				cube(size=[bondwidth * (1 + 3 * fraction),snakelength / 200 + 0.2, bondwidth * (1 - fraction * 0.8)]);
+	}
+}
+
+module clipback(){
+	translate([0,0,-thickness * 1.7])
+	{
+		bond(-180, 0.5, thickness * 3)
+			translate([0,0,-thickness * 1])
+				snake(-15);
+	}
+}
+
 ///////////////////////////////////
 
 //6-7-5 ring system
-
-msphererad = bondwidth / 2;
 minkheight = thickness2 - thickness;
-totalheight = minkheight + msphererad * 2;
 vdisp = -minkheight / 2;
 
 difference(){
@@ -94,24 +117,45 @@ difference(){
 		//build the hexagon
 		rotate(a=[0,0,30])
 			translate([0,0,vdisp])
-				minkowski(){
-					cylinder(h = minkheight, r=bondlength, $fn=6);
-					cylinder(h = thickness, r = msphererad, $fn=20);
+				difference(){
+					minkowski(){
+						cylinder(h = minkheight, r=bondlength, $fn=6);
+						cylinder(h = thickness, r = bondwidth/2, $fn=20);
+					}
+					translate([0,0,thickness2])
+						minkowski(){
+							cylinder(h = thickness, r=bondlength-bondwidth, $fn = 6);
+							sphere(r=minkheight, $fn=20);
+						}
 				}
 
 		//build the heptagon
 		translate([heptcenter, 0, vdisp])
-			minkowski(){
-				cylinder(h = minkheight, r=heptradius, $fn=7);
-				cylinder(h = thickness, r = msphererad, $fn=20);
+			difference(){
+				minkowski(){
+					cylinder(h = minkheight, r=heptradius, $fn=7);
+					cylinder(h = thickness, r = bondwidth/2, $fn=20);
+				}
+				translate([0,0,thickness2])
+					minkowski(){
+						cylinder(h = thickness, r=heptradius-bondwidth, $fn = 7);
+						sphere(r=minkheight, $fn=20);
+					}
 			}
 
 		//build the pentagon
 		translate([heptpent_x, heptpent_y, vdisp])
 			rotate(a=[0,0, 180 / 7])
-			minkowski(){
-				cylinder(h = minkheight, r=pentradius, $fn=5);
-				cylinder(h = thickness, r = msphererad, $fn=20);
+			difference(){
+				minkowski(){
+					cylinder(h = minkheight, r=pentradius, $fn=5);
+					cylinder(h = thickness, r = bondwidth/2, $fn=20);
+				}
+				translate([0,0,thickness2])
+					minkowski(){
+						cylinder(h = thickness, r=pentradius-bondwidth, $fn = 5);
+						sphere(r=minkheight, $fn=20);
+					}
 			}
 	}
 
@@ -140,7 +184,15 @@ translate([-hexnormal, -hexsecant, 0])
 translate([tailend_x, tailend_y, 0])
 	bond(-180/7 - 180/5)
 		bond(-60)
-			attachment(60);
+			if(mode=="pendant")
+			{
+				attachment(60);
+			}	else
+			{
+				bond(60)
+					if (mode=="tieclip")
+						clipback();
+			}
 
 
 // 7-glyco
@@ -149,12 +201,17 @@ translate([-hexnormal, hexsecant, 0])
 			bond(60)
 					bond(-60)
 						rotate([0,0,140]){
-								bond(-60)
-										bond(60,0.8)
-												bond(-100,1.4);	
-								bond(-100,1.4)
-										bond(100, 0.8)
-												bond(-60)
+								bond(-60, 1, thickness2)
+										bond(60,0.8, thickness2)
+												bond(-100,1.4, thickness2);	
+								bond(-100,1.4,thickness2)
+										bond(100, 0.8, thickness2)
+												bond(-60, 1, thickness2)
 														bond(40)
-																attachment(-60);
+																if (mode=="pendant")
+																{
+																	attachment(-60);
+																} else {
+																	bond(-60);
+																}
 						}
